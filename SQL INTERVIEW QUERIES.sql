@@ -91,6 +91,7 @@ Use case: Finding Nth highest/lowest values, category tiers, no gaps needed
 '''
 
 	''' NOTE : RANKING FUNCTIONS ASSIGN RANK VALUES TO NULLS AS WELL BE CAREFUL WHILE YOU USE THEM'''
+	
 
 SELECT salary,
     RANK() OVER (ORDER BY salary DESC) as rank_val,
