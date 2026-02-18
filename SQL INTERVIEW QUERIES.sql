@@ -429,3 +429,314 @@ WHERE (emp_id, emp_name, emp_salary, emptime_stamp) NOT IN (
 select * from emp_list;
 
 
+
+-- QUESTION 4: SWAP GENDER FOR GIVEN TABLE
+
+
+CREATE TABLE staff (
+    emp_id INT PRIMARY KEY,
+    emp_name VARCHAR(50),
+    department VARCHAR(50),
+    gender VARCHAR(10),
+    salary DECIMAL(10, 2),
+    hire_date DATE
+);
+
+INSERT INTO staff (emp_id, emp_name, department, gender, salary, hire_date) VALUES
+(1, 'John Smith', 'Engineering', 'M', 85000.00, '2020-01-15'),
+(2, 'Sarah Johnson', 'Marketing', 'F', 72000.00, '2019-03-22'),
+(3, 'Michael Brown', 'Engineering', 'M', 95000.00, '2018-07-10'),
+(4, 'Emily Davis', 'Sales', 'F', 68000.00, '2021-02-28'),
+(5, 'David Wilson', 'Engineering', 'M', 91000.00, '2019-11-05'),
+(6, 'Jennifer Garcia', 'HR', 'F', 65000.00, '2020-06-17'),
+(7, 'Robert Martinez', 'Finance', 'M', 78000.00, '2018-09-30'),
+(8, 'Lisa Anderson', 'Marketing', 'F', 71000.00, '2021-01-12'),
+(9, 'James Taylor', 'Sales', 'M', 69000.00, '2020-08-25'),
+(10, 'Mary Thomas', 'Engineering', 'F', 88000.00, '2019-04-18'),
+(11, 'Christopher Lee', 'Finance', 'M', 82000.00, '2021-03-07'),
+(12, 'Patricia White', 'HR', 'F', 64000.00, '2020-10-22'),
+(13, 'Daniel Harris', 'Engineering', 'M', 93000.00, '2018-12-14'),
+(14, 'Linda Clark', 'Sales', 'F', 67000.00, '2019-07-29'),
+(15, 'Matthew Lewis', 'Marketing', 'M', 73000.00, '2021-05-11');
+
+drop table staff;
+
+select * from staff;
+
+-- QUESTION 1: WHEN THERE IS 'M' REPLACE WITH 'MALE' 'F' REPLACE WITH 'FEMALE'
+
+UPDATE staff 
+SET gender=
+CASE WHEN gender='M' THEN 'MALE'
+WHEN gender='F' THEN 'FEMALE'
+ELSE gender
+END;
+
+-- QUESTION 2 : SWAP THE GENDER VALUE
+
+-- Production-ready version with safety
+START TRANSACTION;
+
+-- Verify before
+SELECT 
+    gender,
+    COUNT(*) as count_before
+FROM Staff
+GROUP BY gender;
+
+-- Perform swap
+UPDATE Staff
+SET gender = 
+    CASE 
+        WHEN gender = 'MALE' THEN 'FEMALE'
+        WHEN gender = 'FEMALE' THEN 'MALE'
+        ELSE gender
+    END;
+
+-- Verify after
+SELECT 
+    gender,
+    COUNT(*) as count_after
+FROM Staff
+GROUP BY gender;
+
+-- If counts match (MALE before = FEMALE after), then:
+COMMIT;
+
+
+
+
+-- QUESTION 5 : SWAP EMP_DETAILS
+
+CREATE TABLE employee_contacts (
+    emp_id INT PRIMARY KEY,
+    emp_name VARCHAR(50),
+    personal_email VARCHAR(100),
+    work_email VARCHAR(100),
+    personal_phone VARCHAR(15),
+    work_phone VARCHAR(15),
+    home_address VARCHAR(200),
+    office_address VARCHAR(200)
+);
+
+INSERT INTO employee_contacts VALUES
+(1, 'John Smith', 
+    'john@work.com', 'john.smith@personal.com',  -- Emails swapped!
+    '555-9999', '555-1234',                      -- Phones swapped!
+    '100 Office Plaza', '50 Home Street'),       -- Addresses swapped!
+    
+(2, 'Sarah Johnson',
+    'sarah@work.com', 'sarah.j@personal.com',    -- Emails swapped!
+    '555-8888', '555-5678',                      -- Phones swapped!
+    '200 Work Ave', '75 Residential Rd'),        -- Addresses swapped!
+    
+(3, 'Mike Davis',
+    'mike.d@personal.com', 'mike@work.com',      -- Correct order!
+    '555-1111', '555-9876',                      -- Correct order!
+    '25 House Lane', '300 Corporate Blvd');      -- Correct order!
+    
+    
+    
+    
+    -- Comprehensive employee data correction
+
+START TRANSACTION;
+
+-- 1. Verify data before swap
+SELECT 
+    emp_id,
+    personal_email,
+    work_email,
+    CASE 
+        WHEN personal_email LIKE '%@work.com%' THEN 'NEEDS SWAP'
+        ELSE 'OK'
+    END as status
+FROM employee_contacts;
+
+-- 2. Perform the swap
+UPDATE employee_contacts
+SET 
+    personal_email = work_email,
+    work_email = personal_email,
+    personal_phone = work_phone,
+    work_phone = personal_phone,
+    home_address = office_address,
+    office_address = home_address
+WHERE personal_email LIKE '%@work.com%'  -- Only swap rows that need it
+   OR work_email LIKE '%@personal.com%';
+
+-- 3. Verify after swap
+SELECT 
+    emp_id,
+    personal_email,
+    work_email,
+    CASE 
+        WHEN personal_email LIKE '%@personal.com%' 
+         AND work_email LIKE '%@work.com%' THEN 'FIXED'
+        ELSE 'CHECK'
+    END as status
+FROM employee_contacts;
+
+-- 4. Commit if everything looks good
+COMMIT;
+-- Or ROLLBACK if something went wrong
+
+
+-- QUESTION 6 :  Find all employees who earn more than their managers
+
+CREATE TABLE employees_simple (
+    emp_id INT PRIMARY KEY,
+    emp_name VARCHAR(50),
+    department VARCHAR(50),
+    salary DECIMAL(10,2),
+    manager_id INT
+);
+
+INSERT INTO employees_simple VALUES
+(1, 'Alice', 'Executive', 200000.00, NULL),   -- CEO (NULL manager)
+
+(2, 'Bob', 'Engineering', 150000.00, 1),      -- Less than manager
+(3, 'Charlie', 'Engineering', 160000.00, 2),  -- More than manager
+(4, 'David', 'Sales', 150000.00, 2),          -- Equal to manager
+(5, 'Eva', 'Sales', NULL, 4),                 -- NULL salary
+(6, 'Frank', 'Marketing', 140000.00, NULL),   -- No manager (NULL)
+
+(7, 'Grace', 'Marketing', 145000.00, 6),      -- More than manager
+(8, 'Henry', 'Engineering', 120000.00, 2),    -- Less than manager
+(9, 'Ivy', 'Sales', 150000.00, 4),            -- Equal to manager
+(10, 'Jack', 'HR', NULL, 1);                  -- NULL salary
+
+select * from employees_simple;
+
+
+
+
+SELECT 
+    e2.emp_name AS employee,
+    e2.salary AS employee_salary,
+    e1.emp_name AS manager,
+    e1.salary AS manager_salary
+FROM employees_simple e1
+JOIN employees_simple e2
+    ON e1.emp_id = e2.manager_id
+WHERE e2.salary > e1.salary AND e2.salary IS NOT NULL AND e1.salary IS NOT NULL;
+
+
+-- QUESTION 7 : Find employees who are not present in the department table
+
+
+-- Clean slate
+DROP TABLE IF EXISTS employees_list;
+DROP TABLE IF EXISTS departments_list;
+
+-- Departments table
+CREATE TABLE departments_list (
+    dept_id INT ,
+    dept_name VARCHAR(50),
+    location VARCHAR(50),
+    manager_name VARCHAR(50)
+);
+
+-- Employees table
+CREATE TABLE employees_list (
+    emp_id INT PRIMARY KEY,
+    emp_name VARCHAR(50),
+    dept_id INT,
+    salary DECIMAL(10, 2),
+    hire_date DATE
+);
+
+INSERT INTO departments_list (dept_id, dept_name, location, manager_name) VALUES
+(10, 'Engineering', 'San Francisco', 'Sarah Chen'),
+(20, 'Sales', 'New York', 'Michael Scott'),
+(30, 'Marketing', 'Los Angeles', 'Jennifer Lopez'),
+(NULL, 'Unassigned', 'Remote', 'TBD');  -- ⚠️ NULL dept_id (THE TRAP!)
+
+INSERT INTO employees_list (emp_id, emp_name, dept_id, salary, hire_date) VALUES
+-- ✅ CASE 1: Valid department (dept_id exists in departments)
+(101, 'Alice Johnson', 10, 85000.00, '2020-01-15'),
+
+-- ✅ CASE 2: Valid department (another valid one)
+(102, 'Bob Smith', 20, 72000.00, '2019-03-22'),
+
+-- ❌ CASE 3: Invalid department (dept_id = 60 doesn't exist)
+(103, 'Carol White', 60, 78000.00, '2018-09-30'),
+
+-- ❌ CASE 4: Invalid department (dept_id = 99 doesn't exist)
+(104, 'David Brown', 99, 88000.00, '2021-01-12'),
+
+-- ⚠️ CASE 5: NULL department (employee has no dept assigned)
+(105, 'Emma Davis', NULL, 91000.00, '2019-04-18'),
+
+-- ⚠️ CASE 6: NULL department (another NULL case)
+(106, 'Frank Miller', NULL, 82000.00, '2021-03-07'),
+
+-- ✅ CASE 7: Valid department (third valid one)
+(107, 'Grace Lee', 30, 67000.00, '2020-10-22'),
+
+-- ❌ CASE 8: Invalid department (dept_id = 80 doesn't exist)
+(108, 'Henry Wilson', 80, 73000.00, '2021-05-11');
+
+
+-- 
+
+	
+select * from employees_list;
+
+select * from departments_list;
+
+-- METHOD 1: NOT IN SUBQUERY
+
+-- METHOD 1: NOT IN - Use when NULL employees should be EXCLUDED
+-- Returns: Only employees with invalid dept_ids (ignores NULL)
+SELECT emp_id, emp_name, dept_id
+FROM employees_list
+WHERE dept_id IS NOT NULL 
+  AND dept_id NOT IN (
+      SELECT dept_id 
+      FROM departments_list 
+      WHERE dept_id IS NOT NULL
+  );
+
+-- METHOD 2: NOT EXISTS - Use when NULL employees should be INCLUDED  
+-- Returns: All orphaned employees (invalid IDs + NULLs)
+
+SELECT e.emp_id, e.emp_name, e.dept_id
+FROM employees_list e
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM departments_list d
+    WHERE d.dept_id = e.dept_id
+);
+
+```
+
+Let me break this down **step-by-step** with our 8-record dataset.
+
+---
+
+## 📚 How EXISTS Works (First Understanding EXISTS)
+
+### **EXISTS returns TRUE or FALSE**
+
+- **EXISTS** checks: "Does at least one row exist that matches the condition?"
+- Returns **TRUE** if subquery returns 1+ rows
+- Returns **FALSE** if subquery returns 0 rows
+- **NOT EXISTS** simply reverses this (TRUE ↔ FALSE)
+
+```
+
+-- METHOD 3: USING JOINS
+
+
+
+select * from employees_list;
+
+-- SELECT EMPLOYEES WHO HAVE NO DEPARTMENT IN DEPARTMENT IN THE DEPARTMENTS TABLE AND AVOID NULL VALUES IN EMPLOYEE DEPARTMENT COLUMN
+
+SELECT e1.emp_id,e1.emp_name,e1.dept_id
+FROM employees_list e1
+LEFT JOIN departments_list d
+ON e1.dept_id=d.dept_id
+WHERE d.dept_id is null  and e1.dept_id is not null
+
