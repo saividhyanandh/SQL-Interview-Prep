@@ -122,7 +122,7 @@ Question: Do you need to handle duplicate values?
 
 
 
--- HOW TO FIND DUPLICATES IN SQL EXPLAIN :
+-- QUESTION 2: HOW TO FIND DUPLICATES IN SQL EXPLAIN :
 
  DROP TABLE CUSTOMERS;
 
@@ -221,4 +221,211 @@ WHERE EXISTS (
 			  FROM customers c2
 			  WHERE c1.email=c2.email AND c1.phone=c2.phone AND c1.customer_id!=c2.customer_id
               );
+
+
+
+
+-- QUESTION 3: DELETING DUPLICATES FROM TABLE
+
+
+CREATE TABLE emp_details (
+    emp_id INT,
+    emp_name VARCHAR(10),
+    emp_salary INT,
+    emptime_stamp TIMESTAMP
+);
+
+INSERT INTO emp_details VALUES
+(1,'sai',100000,'2024-08-12 09:08:00'),
+(2,'raghu',500000,'2025-01-08 12:08:00'),
+(3,'balaji',700000,'2026-01-12 07:06:00'),
+(4,'guru',70000,'2025-09-23 03:02:00'),
+(1,'sai',100000,'2024-08-12 09:43:00');
+
+
+
+drop table emp_details;
+
+select * from emp_details;
+
+-- LATEST RECORD & EARLIEST RECORD DELETION 
+
+-- THE BELOW QUERY DELETES THE EARLIEST RECORD FROM THE TABLE
+
+-- TO DELETE LATEST RECORD WE CAN USE MAX FUNCTION
+
+DELETE FROM emp_details
+WHERE (emp_id,emptime_stamp) IN(
+SELECT emp_id,earliest_timestamp
+FROM(
+SELECT emp_id,min(emptime_stamp) as earliest_timestamp
+FROM emp_details
+GROUP BY emp_id
+HAVING COUNT(1)>1
+) as temp
+)
+;
+
+-- DELETE DUPLICATES BASED ON emp_id & emp_salary
+
+
+
+CREATE TABLE emp_info (
+    emp_id INT,
+    emp_name VARCHAR(10),
+    emp_salary INT,
+    emptime_stamp TIMESTAMP
+);
+
+INSERT INTO emp_info VALUES
+(1,'sai',100000,'2024-08-12 09:08:00'),
+(2,'raghu',500000,'2025-01-08 12:08:00'),
+(3,'balaji',700000,'2026-01-12 07:06:00'),
+(4,'guru',70000,'2025-09-23 03:02:00'),
+(1,'sai',120000,'2024-08-12 09:43:00');
+
+
+SELECT * from emp_info;
+
+
+DELETE FROM emp_info
+WHERE (emp_id,emp_name,emp_salary) IN (
+SELECT emp_id,emp_name,min_salary
+FROM(
+SELECT emp_id,emp_name,min(emp_salary) as min_salary
+FROM emp_info
+GROUP BY emp_id,emp_name
+HAVING COUNT(1)>1) as temp
+)
+;
+
+
+-- SCENARIO 2: IF ALL THE ROWS ARE DUPLICATE 
+
+ -- For example if we have (1,'sai',100000,'2024-08-12 09:08:00') record two times the query deletes the two occurences in the table. so the method doesn't work there
+ 
+ -- PURE DUPLICATE ALL ROW VALUES ARE CONSIDERED
+ 
+ 
+ -- THEN COMES TO THE PICTURE BACKUP TABLE METHOD:
+ 
+ 
+ 
+CREATE TABLE emp_list (
+    emp_id INT,
+    emp_name VARCHAR(10),
+    emp_salary INT,
+    emptime_stamp TIMESTAMP
+);
+
+INSERT INTO emp_list VALUES
+(1,'sai',120000,'2024-08-12 09:43:00'),
+(2,'raghu',500000,'2025-01-08 12:08:00'),
+(3,'balaji',700000,'2026-01-12 07:06:00'),
+(4,'guru',70000,'2025-09-23 03:02:00'),
+(1,'sai',120000,'2024-08-12 09:43:00'),
+(1,'sai',120000,'2024-08-12 09:43:00');
+
+drop table emp_list;
+
+select * from emp_list;
+
+-- APPROACH 1 : USING DISTINCT
+
+
+-- step 1 : create a backup table
+
+
+create table emp_list_backup as select * from emp_list;
+
+select * from emp_list_backup;
+
+
+-- step 2: delete the values from original table
+
+delete from emp_list;
+
+select * from emp_list;
+
+
+-- step3: get unique values from backup table and place them in original table.
+
+insert into emp_list select distinct * from emp_list_backup;
+
+select * from emp_list;
+
+-- step 4 : drop the backup table
+
+drop table emp_list_backup;
+
+
+-- APPROACH 2 : USING ROW_NUMBER
+
+
+-- STEP 1: create a backup table 
+
+
+
+create table  emp_list_backup2 as select * from emp_list;
+
+-- step 2 : delete values from original table
+
+delete from emp_list;
+
+select * from emp_list;
+
+-- STEP 3 : USING ROW NUMBER GENERATE RANKS ON YOUR REQUIRED PARTITIONING LEVEL AND FILTER THEM TO GET UNIQUE VALUES AND INSERT THEM INTO ORIGINAL TABLE
+
+
+INSERT INTO emp_list
+SELECT emp_id, emp_name,emp_salary,emptime_stamp
+FROM (
+    SELECT *,
+           ROW_NUMBER() OVER (
+               PARTITION BY emp_id, emp_name, emptime_stamp
+               ORDER BY emp_salary DESC
+           ) AS ranking
+    FROM emp_list_backup2
+) a
+WHERE a.ranking = 1;
+
+
+-- STEP 4 : DROP THE BACK UP TABLE 
+
+DROP TABLE emp_list_backup2;
+
+select * from emp_list_backup2;
+
+
+-- SCENARIO 3: WHAT IF WE HAVE DIFFERNT TIME STAMPS AND REMAINING COLUMN VALUES ARE DUPLICATE HOW CAN WE DELETE THE VALUES WITHOUT CREATING THE BACKUP :
+
+delete from emp_list;
+
+INSERT INTO emp_list VALUES
+(1,'sai',120000,'2024-08-12 07:43:00'),
+(2,'raghu',500000,'2025-01-08 08:08:00'),
+(3,'balaji',700000,'2026-01-12 07:06:00'),
+(4,'guru',70000,'2025-09-23 03:02:00'),
+(1,'sai',120000,'2024-08-12 09:43:00'),
+(1,'sai',120000,'2024-08-12 09:43:55');
+
+-- THIS SHOULD WORK    
+
+
+DELETE FROM emp_list
+WHERE (emp_id, emp_name, emp_salary, emptime_stamp) NOT IN (
+    SELECT emp_id, emp_name, emp_salary, latest_time
+    FROM (
+        SELECT emp_id,
+               emp_name,
+               emp_salary,
+               MAX(emptime_stamp) AS latest_time
+        FROM emp_list
+        GROUP BY emp_id, emp_name, emp_salary
+    ) AS temp
+);
+
+
+select * from emp_list;
+
 
